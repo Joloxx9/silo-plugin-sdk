@@ -196,7 +196,7 @@ func validateWatchSyncCapability(descriptor *pluginv1.CapabilityDescriptor) erro
 		!watchSync.GetExportWatchlist() && !watchSync.GetRemoveWatchlist() &&
 		!watchSync.GetScrobblePlayback() &&
 		!watchSync.GetImportRatings() && !watchSync.GetExportRatings() &&
-		!watchSync.GetSyncDropped() {
+		!watchSync.GetSyncDropped() && !watchSync.GetSyncCollections() {
 		return fmt.Errorf("plugin capability %q: at least one watch sync operation is required", descriptor.GetId())
 	}
 	if watchSync.GetProvidesWatchlistOrder() && !watchSync.GetImportWatchlist() {
@@ -221,6 +221,9 @@ func validateWatchSyncCapability(descriptor *pluginv1.CapabilityDescriptor) erro
 	if watchSync.GetSyncDropped() && !watchSyncSupportsMediaType(watchSync.GetSupportedMediaTypes(),
 		pluginv1.WatchSyncMediaType_WATCH_SYNC_MEDIA_TYPE_SERIES) {
 		return fmt.Errorf("plugin capability %q: watch sync dropped shows require the SERIES supported media type", descriptor.GetId())
+	}
+	if watchSync.GetSyncCollections() && !watchSyncSupportsRatedMediaType(watchSync.GetSupportedMediaTypes()) {
+		return fmt.Errorf("plugin capability %q: watch sync collections require a MOVIE or SERIES supported media type", descriptor.GetId())
 	}
 	if len(watchSync.GetRatingExportRequiresWatched()) > 0 && !watchSync.GetExportRatings() {
 		return fmt.Errorf("plugin capability %q: rating_export_requires_watched requires export_ratings", descriptor.GetId())

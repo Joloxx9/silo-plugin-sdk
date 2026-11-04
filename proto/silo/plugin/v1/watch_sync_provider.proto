@@ -67,6 +67,13 @@ enum WatchSyncOperation {
   // undropping one that is not, must yield APPLIED or NO_CHANGE, never a fault.
   WATCH_SYNC_OPERATION_MARK_DROPPED = 12;
   WATCH_SYNC_OPERATION_UNMARK_DROPPED = 13;
+  // Collection writes add a MOVIE or SERIES item to, or remove it from, the
+  // named provider list in WatchSyncEvent.collection_key. Both are convergent
+  // desired-state operations: adding an item already listed, or removing one
+  // that is absent, must yield APPLIED or NO_CHANGE, never a fault. A key the
+  // provider no longer has is REJECTED with PERMANENT.
+  WATCH_SYNC_OPERATION_ADD_TO_COLLECTION = 14;
+  WATCH_SYNC_OPERATION_REMOVE_FROM_COLLECTION = 15;
 }
 
 enum WatchSyncRemoteStateKind {
@@ -77,6 +84,9 @@ enum WatchSyncRemoteStateKind {
   WATCH_SYNC_REMOTE_STATE_KIND_WATCHLIST = 4;
   WATCH_SYNC_REMOTE_STATE_KIND_RATING = 5;
   WATCH_SYNC_REMOTE_STATE_KIND_DROPPED = 6;
+  // Membership of the account's own named lists, other than its watchlist
+  // and favorites. See WatchSyncProviderDescriptor.sync_collections.
+  WATCH_SYNC_REMOTE_STATE_KIND_COLLECTION = 7;
 }
 
 enum WatchSyncDeviceAuthorizationStatus {
@@ -164,6 +174,14 @@ message WatchSyncProviderDescriptor {
   // capability's config_schema, which is collected once when an API-key
   // connection is made. Keys are unique lowercase slugs.
   repeated WatchSyncConnectionSetting connection_settings = 21;
+  // When sync_collections is set, the account's own named lists sync both
+  // ways with collections on the profile. A COLLECTION traversal must be a
+  // complete snapshot: it lists every collection in
+  // WatchSyncListRemoteStateResponse.collections, including empty ones, and
+  // returns one COLLECTION state per item and collection. ApplyEvents handles
+  // ADD_TO_COLLECTION and REMOVE_FROM_COLLECTION. supported_media_types must
+  // include MOVIE or SERIES; collections hold whole movies and series only.
+  bool sync_collections = 22;
 }
 
 // Hosts skip a setting whose type they do not know, including UNSPECIFIED,
@@ -393,6 +411,10 @@ message WatchSyncEvent {
   // resending the same value, or removing a rating that is already absent,
   // must yield APPLIED or NO_CHANGE, never a fault.
   int32 rating = 15;
+  // The provider list a collection operation addresses: a key returned in
+  // WatchSyncRemoteCollection.collection_key. Required for ADD_TO_COLLECTION
+  // and REMOVE_FROM_COLLECTION and ignored for every other operation.
+  string collection_key = 16;
 }
 
 message WatchSyncApplyEventsRequest {
@@ -490,6 +512,28 @@ message WatchSyncRemoteState {
   // series was dropped, when available; removed=true is an explicit undrop
   // tombstone for incremental traversals.
   WatchSyncRemoteListState dropped = 8;
+  // Present in COLLECTION traversals: the item is on the collection named by
+  // collection.collection_key. An item on several collections is returned
+  // once per collection.
+  WatchSyncRemoteCollectionItemState collection = 9;
+}
+
+// One of the account's named lists, as returned with a COLLECTION traversal.
+message WatchSyncRemoteCollection {
+  // Stable provider key for the list, unique within the connection. It must
+  // not change when the list is renamed.
+  string collection_key = 1;
+  // Display name. The host uses it when it first creates the local
+  // collection and may show it as the list's source.
+  string name = 2;
+  string description = 3;
+}
+
+message WatchSyncRemoteCollectionItemState {
+  // Key of a collection listed in the same traversal.
+  string collection_key = 1;
+  // Provider timestamp for when the item was added, when available.
+  google.protobuf.Timestamp listed_at = 2;
 }
 
 message WatchSyncListRemoteStateResponse {
@@ -519,4 +563,9 @@ message WatchSyncListRemoteStateResponse {
   // the provider returned them without usable identity. The host shows them
   // with the sync run. They follow the WatchSyncFault.safe_message rules.
   repeated string warnings = 7;
+  // Every named list the account has, including empty ones, for COLLECTION
+  // traversals; plugins may repeat it on every page and the host takes the
+  // union. A collection absent from a complete traversal no longer exists on
+  // the provider.
+  repeated WatchSyncRemoteCollection collections = 8;
 }
