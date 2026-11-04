@@ -285,6 +285,31 @@ func TestValidateWatchSyncProviderDroppedShows(t *testing.T) {
 	}
 }
 
+func TestValidateWatchSyncProviderCollections(t *testing.T) {
+	movie := pluginv1.WatchSyncMediaType_WATCH_SYNC_MEDIA_TYPE_MOVIE
+	episode := pluginv1.WatchSyncMediaType_WATCH_SYNC_MEDIA_TYPE_EPISODE
+	for _, tc := range []struct {
+		name    string
+		media   []pluginv1.WatchSyncMediaType
+		wantErr bool
+	}{
+		{name: "movie", media: []pluginv1.WatchSyncMediaType{movie}},
+		{name: "episode only", media: []pluginv1.WatchSyncMediaType{episode}, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			manifest := validWatchSyncManifest()
+			descriptor := manifest.Capabilities[0].WatchSyncProvider
+			descriptor.ExportWatched = false
+			descriptor.SyncCollections = true
+			descriptor.SupportedMediaTypes = tc.media
+			err := publicmanifest.Validate(manifest)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Validate() error = %v, wantErr %t", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateWatchSyncProviderRatingExportRequiresWatched(t *testing.T) {
 	movie := pluginv1.WatchSyncMediaType_WATCH_SYNC_MEDIA_TYPE_MOVIE
 	series := pluginv1.WatchSyncMediaType_WATCH_SYNC_MEDIA_TYPE_SERIES
