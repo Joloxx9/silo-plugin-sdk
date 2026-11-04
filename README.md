@@ -430,6 +430,17 @@ series that is already dropped, or undropping one that is not, returns
 `APPLIED` or `NO_CHANGE`. Manifest validation requires `SERIES` in
 `supported_media_types` when the flag is set.
 
+`sync_collections` covers the account's own named lists other than its
+watchlist and favorites. A `COLLECTION` traversal is always a complete
+snapshot: the response lists every collection in `collections`, including
+empty ones, with a `collection_key` that stays the same when the list is
+renamed, and returns one `COLLECTION` state per item and collection.
+`ApplyEvents` handles `ADD_TO_COLLECTION` and `REMOVE_FROM_COLLECTION` for
+whole `MOVIE` and `SERIES` items, with the target list in
+`WatchSyncEvent.collection_key`. Both writes are convergent; a key the provider
+no longer has is `REJECTED` with `PERMANENT`. Manifest validation requires
+`MOVIE` or `SERIES` in `supported_media_types` when the flag is set.
+
 `connection_settings` declares preferences a profile can change on its
 connection at any time, such as whether to log rewatches. Each setting has a
 lowercase slug `key`, a `label`, an optional `description`, a `type`, and an
